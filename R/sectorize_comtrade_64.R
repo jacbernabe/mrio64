@@ -1,3 +1,8 @@
+#' @title Sectorize comtrade to 64 sectors
+#' @description maps and aggregates product level trade data to mrio sectors
+#'
+#' @param path, replace with directory where Comtrade bulk downloads are located
+#'
 #' @export
 
 # File: R/sectorize_comtrade_64.R
@@ -25,10 +30,10 @@ sectorize_comtrade_64 <- function(path) {
     files <- path
   }
 
-  cli::br()
+  cli::cli_text("")
   cli::cli_text("Found the following files:")
   for (file in files) cli::cli_bullets(c(`*` = paste0("{.header ", file, "}")))
-  cli::br()
+  cli::cli_text("")
 
   # Process each file
   for (file in files) {
@@ -72,17 +77,17 @@ sectorize_comtrade_64 <- function(path) {
                 dplyr::left_join(
                   dplyr::left_join(
                     df_cleaned,
-                    dplyr::select(hsbecsitc, {{ hscode }}, .data$HS02, .data$BEC5),
+                    dplyr::select(hsbecsitc, {{ hscode }}, .data$HS12, .data$BEC5),
                     by = c(cmdCode = hscode), multiple = "any"
                   ),
                   dplyr::select(hsbec, BEC5 = .data$BEC5Code1, .data$BEC5EndUse),
                   multiple = "any"
                 ),
-                hs02cpc, multiple = "any"
+                hs12cpc21, multiple = "any"
               ),
-              cpcisic, multiple = "any"
+              cpc21isic4, multiple = "any"
             ),
-            isicmrio64, multiple = "any"
+            isic4mrio64, multiple = "any"
           ),
           period = as.numeric(period),
           reporterCode = as.numeric(reporterCode),
@@ -107,6 +112,6 @@ sectorize_comtrade_64 <- function(path) {
     # Disconnect
     DBI::dbDisconnect(conn, shutdown = TRUE)
     cli::cli_alert_success("{.check Completed.}")
-    cli::br()
+    cli::cli_text("")
   }
 }

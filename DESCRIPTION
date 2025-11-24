@@ -1,11 +1,19 @@
 Package: mrio64
-Title: What the Package Does (One Line, Title Case)
+Title: Aggregate UN Comtrade data into 65 sectors of the ADB MRIO 
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Data Division", "Asian Development Bank", , "jbernabe.consultant@adb.org", role = c("aut", "cre"))
+Description: Maps each commodity code to corresponding ISIC Rev 4 industry then aggregates results into 65 level of aggregation used in the expanded version of the ADB MRIO.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+Imports: 
+    cli,
+    DBI,
+    dplyr,
+    duckdb,
+    glue,
+    openxlsx
+URL: https://github.com/jacbernabe/mrio64
+BugReports: https://github.com/jacbernabe/mrio64/issues

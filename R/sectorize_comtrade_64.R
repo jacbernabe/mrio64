@@ -6,6 +6,14 @@
 #'
 #' @export
 
+#' @import DBI
+#' @import duckdb
+#' @import dplyr
+#' @import magrittr
+#' @import glue
+#' @import openxlsx
+#' @import cli
+
 sectorize_comtrade_64 <- function(path) {
 
   # Excel header style

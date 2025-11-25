@@ -1,50 +1,46 @@
-#' @title Sectorize comtrade to 64 sectors
-#' @description maps and aggregates product level trade data to mrio sectors
+#' @title Sectorize Comtrade to 64 MRIO sectors
+#' @description Maps and aggregates product-level Comtrade data to MRIO 64-sector classification
 #'
-#' @param path, replace with directory where Comtrade bulk downloads are located
+#' @param path Directory where Comtrade bulk downloads are located
+#' @param report_unmapped Logical; if TRUE, generates a CSV report of unmapped HS codes
 #'
 #' @export
 
-# File: R/sectorize_comtrade_64.R
-# Author: ADB MRIO
-# Purpose: Map Comtrade HS data to MRIO 64-sector classification
-
 sectorize_comtrade_64 <- function(path) {
 
-  # Style for Excel headers
+  # Excel header style
   headerstyle <- openxlsx::createStyle(fgFill = "#E7E6E6", textDecoration = "bold")
 
-  # Fancy console messages
+  # CLI style for console messages
   cli::cli_div(theme = list(
     span.header = list(color = "cyan"),
     span.check  = list(color = "darkgreen")
   ))
 
-  # Determine savedir
+  # Determine save directory
   savedir <- ifelse(file.info(path)$isdir, path, dirname(path))
 
   # List Comtrade files
-  if (file.info(path)$isdir) {
-    files <- list.files(path, pattern = "^[A-Z]{3}.*(20)[0-9]{2}.*(gz)$")
+  files <- if (file.info(path)$isdir) {
+    list.files(path, pattern = "^[A-Z]{3}.*(20)[0-9]{2}.*(gz)$")
   } else {
-    files <- path
+    path
   }
 
-  cli::cli_text("")
-  cli::cli_text("Found the following files:")
-  for (file in files) cli::cli_bullets(c(`*` = paste0("{.header ", file, "}")))
+  cli::cli_text("\nFound the following files:")
+  for (file in files) cli::cli_bullets(c(`*` = file))
   cli::cli_text("")
 
   # Process each file
   for (file in files) {
 
-    cli::cli_text(paste0("Working on {.header ", file, "}..."))
+    cli::cli_text(paste0("Working on ", file, "..."))
 
     # Connect to in-memory DuckDB
     conn <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
-    # Clean CSV with DuckDB SQL
-    df_cleaned <- DBI::dbGetQuery(conn, glue::glue("
+    # Read and filter CSV
+    df_cleaned <- DBI::dbGetQuery(conn, glue("
       SELECT period,
              reporterCode,
              flowCode,
@@ -61,57 +57,43 @@ sectorize_comtrade_64 <- function(path) {
         AND customsCode = 'C00'
     "))
 
+    # Convert cmdCode to numeric to match concordances
+    df_cleaned$cmdCode <- as.numeric(df_cleaned$cmdCode)
+
     # Determine HS edition
     hscode <- hscodes$edition[hscodes$code == unique(df_cleaned$classificationCode)]
 
-    # Minor adjustment in HS→BEC5 mapping
+    # Minor adjustment in HS->BEC mapping
     hsbecsitc$BEC5[hsbecsitc$BEC5 == 8] <- "812020"
 
-    # Merge through the concordances and aggregate
-    df_sectorized <- suppressMessages(
-      dplyr::summarise(
-        dplyr::mutate(
-          dplyr::left_join(
-            dplyr::left_join(
-              dplyr::left_join(
-                dplyr::left_join(
-                  dplyr::left_join(
-                    df_cleaned,
-                    dplyr::select(hsbecsitc, {{ hscode }}, .data$HS12, .data$BEC5),
-                    by = c(cmdCode = hscode), multiple = "any"
-                  ),
-                  dplyr::select(hsbec, BEC5 = .data$BEC5Code1, .data$BEC5EndUse),
-                  multiple = "any"
-                ),
-                hs12cpc21, multiple = "any"
-              ),
-              cpc21isic4, multiple = "any"
-            ),
-            isic4mrio64, multiple = "any"
-          ),
-          period = as.numeric(period),
-          reporterCode = as.numeric(reporterCode),
-          partnerCode  = as.numeric(partnerCode),
-          primaryValue = as.numeric(primaryValue)
-        ),
-        primaryValue = sum(.data$primaryValue),
-        .by = c(.data$period, .data$reporterCode, .data$flowCode,
-                .data$partnerCode, .data$BEC5EndUse, .data$MRIO)
-      )
-    )
+    # Merge through the concordances
+    df_sectorized <- df_cleaned %>%
+      left_join(select(hsbecsitc, !!hscode, "HS12", "BEC5"), by = setNames(hscode, "cmdCode"), multiple = "any") %>%
+      left_join(select(hsbec, BEC5 = "BEC5Code1", "BEC5EndUse"), multiple = "any") %>%
+      left_join(hs12cpc21, multiple = "any") %>%
+      left_join(cpc21isic4, multiple = "any") %>%
+      left_join(isic4mrio64, multiple = "any") %>%
+      mutate(
+        period = as.numeric(period),
+        reporterCode = as.numeric(reporterCode),
+        partnerCode = as.numeric(partnerCode),
+        primaryValue = as.numeric(primaryValue)
+      ) %>%
+      group_by(period, reporterCode, flowCode, partnerCode, BEC5EndUse, MRIO) %>%
+      summarise(primaryValue = sum(primaryValue), .groups = "drop")
 
     # Write to Excel
     filename <- paste0(sub("\\.gz$", "", file), ".xlsx")
     sheetname <- "Sheet1"
-    output <- openxlsx::createWorkbook()
-    openxlsx::addWorksheet(output, sheetname)
-    openxlsx::writeData(output, sheetname, df_sectorized,
-                        withFilter = TRUE, headerStyle = headerstyle)
-    openxlsx::saveWorkbook(output, file.path(savedir, filename), overwrite = TRUE)
+    output <- createWorkbook()
+    addWorksheet(output, sheetname)
+    writeData(output, sheetname, df_sectorized, withFilter = TRUE, headerStyle = headerstyle)
+    saveWorkbook(output, file.path(savedir, filename), overwrite = TRUE)
 
     # Disconnect
     DBI::dbDisconnect(conn, shutdown = TRUE)
-    cli::cli_alert_success("{.check Completed.}")
+    cli::cli_alert_success("Completed!")
     cli::cli_text("")
   }
 }
+

@@ -17,3 +17,6 @@ Imports:
     openxlsx
 URL: https://github.com/jacbernabe/mrio64
 BugReports: https://github.com/jacbernabe/mrio64/issues
+Depends: 
+    R (>= 3.5)
+LazyData: true

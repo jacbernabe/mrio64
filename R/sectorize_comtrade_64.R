@@ -40,7 +40,7 @@ sectorize_comtrade_64 <- function(path) {
     conn <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
     # Read and filter CSV
-    df_cleaned <- DBI::dbGetQuery(conn, glue("
+    df_cleaned <- DBI::dbGetQuery(conn, glue::glue("
       SELECT period,
              reporterCode,
              flowCode,

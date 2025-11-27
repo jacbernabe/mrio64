@@ -2,13 +2,15 @@
 % Please edit documentation in R/sectorize_comtrade_64.R
 \name{sectorize_comtrade_64}
 \alias{sectorize_comtrade_64}
-\title{sectorize comtrade to 64 sectors}
+\title{Sectorize Comtrade to 64 MRIO sectors}
 \usage{
 sectorize_comtrade_64(path)
 }
 \arguments{
-\item{path, }{replace with directory where Comtrade bulk downloads are located}
+\item{path}{Directory where Comtrade bulk downloads are located}
+
+\item{report_unmapped}{Logical; if TRUE, generates a CSV report of unmapped HS codes}
 }
 \description{
-maps and aggregates product level trade data to mrio sectors
+Maps and aggregates product-level Comtrade data to MRIO 64-sector classification
 }
